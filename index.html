@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debt-Free Velocity Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg-deep: #0f172a; --bg-card: #1e293b; --bg-stat: #0f172a; --border: #334155; --text: #e2e8f0; --text-muted: #94a3b8; --text-dim: #64748b; --accent-pink: #f472b6; --accent-indigo: #6366f1; --accent-green: #10b981; --accent-amber: #f59e0b; --accent-red: #ef4444; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, var(--bg-deep) 0%, var(--bg-card) 100%); min-height: 100vh; color: var(--text); }
+  .container { max-width: 1280px; margin: 0 auto; padding: 24px; }
+  .header { text-align: center; margin-bottom: 32px; }
+  .title { font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #818cf8, #6ee7b7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .subtitle { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+  .tabs { display: flex; gap: 4px; justify-content: center; background: var(--bg-card); border-radius: 12px; padding: 4px; max-width: 500px; margin: 0 auto 24px; }
+  .tab { padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; background: transparent; color: var(--text-muted); font-family: inherit; }
+  .tab.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; }
+  .tab:hover:not(.active) { color: var(--text); }
+  .cards-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .card { background: var(--bg-card); border-radius: 12px; padding: 20px; transition: all 0.2s; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.3); }
+  .card-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .card-value { font-size: 26px; font-weight: 700; color: #f1f5f9; }
+  .card-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .chart-box { background: var(--bg-card); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .chart-title { font-size: 16px; font-weight: 600; color: #f1f5f9; margin-bottom: 16px; }
+  .chart-wrap { position: relative; height: 380px; }
+  .legend-bar { background: var(--bg-card); border-radius: 12px; padding: 16px 24px; margin-bottom: 24px; display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; font-size: 13px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 4px; }
+  .section { margin-bottom: 32px; }
+  .loan-header { font-size: 18px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .loan-sub { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat-box { background: var(--bg-stat); border-radius: 8px; padding: 12px 16px; }
+  .stat-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 18px; font-weight: 600; color: #f1f5f9; margin-top: 2px; }
+  .form-box { background: var(--bg-card); border-radius: 12px; padding: 24px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 12px; align-items: end; }
+  .form-label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; display: block; }
+  .form-input, .form-select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-stat); color: var(--text); font-size: 14px; outline: none; font-family: inherit; }
+  .form-input:focus, .form-select:focus { border-color: var(--accent-indigo); }
+  .btn { padding: 10px 20px; border-radius: 8px; border: none; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 600; cursor: pointer; font-size: 14px; white-space: nowrap; font-family: inherit; }
+  .btn:hover { opacity: 0.9; }
+  .btn-del { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 16px; padding: 2px 6px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  th { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 500; }
+  td { padding: 8px 12px; border-bottom: 1px solid #1e293b44; font-size: 14px; }
+  .empty-state { text-align: center; padding: 32px; color: #475569; }
+  .footer { text-align: center; padding: 16px 0; font-size: 11px; color: var(--border); }
+  .view { display: none; }
+  .view.active { display: block; }
+  input[type="month"]::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+  .drop-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 40px 24px; text-align: center; cursor: pointer; transition: all 0.3s; margin-bottom: 20px; position: relative; }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent-indigo); background: rgba(99,102,241,0.06); }
+  .drop-zone.dragover { transform: scale(1.01); }
+  .drop-icon { font-size: 40px; margin-bottom: 8px; }
+  .drop-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .drop-sub { font-size: 13px; color: var(--text-dim); }
+  .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .import-log { background: var(--bg-stat); border-radius: 8px; padding: 12px 16px; margin-top: 12px; max-height: 200px; overflow-y: auto; font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace; line-height: 1.7; }
+  .log-ok { color: var(--accent-green); }
+  .log-warn { color: var(--accent-amber); }
+  .log-err { color: var(--accent-red); }
+  .log-info { color: var(--text-muted); }
+  .import-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 10px; margin-top: 12px; }
+  .import-stat { background: var(--bg-stat); border-radius: 8px; padding: 10px 14px; text-align: center; }
+  .import-stat .num { font-size: 22px; font-weight: 700; color: var(--accent-green); }
+  .import-stat .lbl { font-size: 11px; color: var(--text-dim); text-transform: uppercase; margin-top: 2px; }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent-indigo); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr 1fr; } .cards-row { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } .cards-row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1 class="title">Debt-Free Velocity Dashboard</h1>
+    <div class="subtitle">Tracking your path to $0 — Updated <span id="updateDate"></span></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="main">Overview</button>
+    <button class="tab" data-tab="breakdown">Breakdown</button>
+    <button class="tab" data-tab="entry">Data Entry</button>
+  </div>
+
+  <!-- ═══ OVERVIEW ═══ -->
+  <div id="view-main" class="view active">
+    <div class="cards-row">
+      <div class="card" style="border-left: 4px solid var(--accent-pink)">
+        <div class="card-label">Total Debt Remaining</div>
+        <div class="card-value" id="totalDebt"></div>
+        <div class="card-sub">Across all 3 loans</div>
+      </div>
+      <div class="card" style="border-left: 4px solid var(--accent-indigo)">
+        <div class="card-label">Estimated Debt-Free</div>
+        <div class="card-value" id="debtFreeDate"></div>
+        <div class="card-sub">Mortgage drives the timeline</div>
+      </div>
+      <div class="card" style="border-left: 4px solid var(--accent-green)">
+        <div class="card-label">Total Interest Saved</div>
+        <div class="card-value" id="interestSaved"></div>
+        <div class="card-sub">vs. original schedules</div>
+      </div>
+      <div class="card" style="border-left: 4px solid var(--accent-amber)">
+        <div class="card-label">Months Ahead (Auto)</div>
+        <div class="card-value" id="monthsAhead"></div>
+        <div class="card-sub">Wells Fargo velocity</div>
+      </div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Combined Debt Burndown — All Loans</div>
+      <div class="chart-wrap"><canvas id="chartCombined"></canvas></div>
+    </div>
+    <div class="legend-bar">
+      <div><span class="legend-dot" style="background:#ef4444"></span> <span style="color:var(--text-muted)">Scheduled Baseline</span> — Original amortization path</div>
+      <div><span class="legend-dot" style="background:#6366f1"></span> <span style="color:var(--text-muted)">Actual Balance</span> — Real statement data</div>
+      <div><span class="legend-dot" style="background:#10b981"></span> <span style="color:var(--text-muted)">Projected Path</span> — Forward projection</div>
+    </div>
+  </div>
+
+  <!-- ═══ BREAKDOWN ═══ -->
+  <div id="view-breakdown" class="view">
+    <!-- PennyMac -->
+    <div class="section">
+      <div class="loan-header" style="color: #6366f1">
+        <span class="legend-dot" style="background:#6366f1"></span> PennyMac Mortgage
+        <span class="loan-sub">Loan #8198200293</span>
+      </div>
+      <div class="stats-grid" id="pm-stats"></div>
+      <div class="chart-box"><div class="chart-title">PennyMac — Balance Over Time</div><div class="chart-wrap"><canvas id="chartPM"></canvas></div></div>
+    </div>
+    <!-- Wells Fargo -->
+    <div class="section">
+      <div class="loan-header" style="color: #f59e0b">
+        <span class="legend-dot" style="background:#f59e0b"></span> Wells Fargo Auto
+        <span class="loan-sub">2024 Tesla Model S</span>
+      </div>
+      <div class="stats-grid" id="wf-stats"></div>
+      <div class="chart-box"><div class="chart-title">Wells Fargo — Balance Over Time</div><div class="chart-wrap"><canvas id="chartWF"></canvas></div></div>
+    </div>
+    <!-- M1 -->
+    <div class="section">
+      <div class="loan-header" style="color: #10b981">
+        <span class="legend-dot" style="background:#10b981"></span> M1 Margin Loan
+        <span class="loan-sub">$500/mo fixed payment</span>
+      </div>
+      <div class="stats-grid" id="m1-stats"></div>
+      <div class="chart-box"><div class="chart-title">M1 Margin — Projected Payoff</div><div class="chart-wrap"><canvas id="chartM1"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- ═══ DATA ENTRY ═══ -->
+  <div id="view-entry" class="view">
+    <!-- PDF Import -->
+    <div class="form-box" style="margin-bottom:20px">
+      <div class="chart-title">Import PDF Statements</div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Drop your PennyMac or Wells Fargo statement PDFs here. The parser auto-detects the lender and extracts the date and balance.</p>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="pdfInput" multiple accept=".pdf">
+        <div class="drop-icon">📄</div>
+        <div class="drop-title">Drag &amp; drop PDF statements here</div>
+        <div class="drop-sub">or click to browse — supports multiple files</div>
+      </div>
+      <div id="importStatus" style="display:none">
+        <div id="importProgress" style="font-size:14px;color:var(--text);margin-bottom:8px"></div>
+        <div class="import-summary" id="importSummary" style="display:none"></div>
+        <div class="import-log" id="importLog"></div>
+      </div>
+    </div>
+
+    <!-- Manual Entry -->
+    <div class="form-box">
+      <div class="chart-title">Manual Entry</div>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">Or manually add a data point.</p>
+      <div class="form-grid">
+        <div><label class="form-label">Loan</label><select class="form-select" id="entryLoan"><option value="pennymac">PennyMac</option><option value="wellsfargo">Wells Fargo</option><option value="m1">M1 Margin</option></select></div>
+        <div><label class="form-label">Statement Date</label><input type="month" class="form-input" id="entryDate"></div>
+        <div><label class="form-label">Balance ($)</label><input type="number" class="form-input" id="entryBalance" placeholder="e.g. 275000"></div>
+        <div><label class="form-label">Note (optional)</label><input type="text" class="form-input" id="entryNote" placeholder="e.g. extra payment"></div>
+        <div><button class="btn" id="entryAdd">+ Add</button></div>
+      </div>
+      <div id="entryTable"></div>
+      <div class="empty-state" id="entryEmpty"><div style="font-size:32px;margin-bottom:8px">📝</div><div>No manual entries yet. Add your latest statement data above.</div></div>
+    </div>
+  </div>
+
+  <div class="footer">Data sourced from PennyMac &amp; Wells Fargo statements · M1 data entered manually · Projections assume current payment rates continue</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// UTILITY
+// ═══════════════════════════════════════════════════════════════════
+const fmt = v => "$" + Number(v).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0});
+const fmtFull = v => "$" + Number(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtK = v => "$"+(v/1000).toFixed(0)+"k";
+const monthDiff = (a,b) => (b.getFullYear()-a.getFullYear())*12+(b.getMonth()-a.getMonth());
+const addMonths = (d,n) => {const r=new Date(d);r.setMonth(r.getMonth()+n);return r;};
+const dlabel = d => d.toLocaleDateString("en-US",{year:"numeric",month:"short"});
+const MN=["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const tickLabel = s => {const p=s.split("-");return MN[+p[1]]+" '"+p[0].slice(2);};
+
+// ═══════════════════════════════════════════════════════════════════
+// RAW DATA
+// ═══════════════════════════════════════════════════════════════════
+const PM_START=336744.98, PM_RATE=0.02875, PM_TERM=240, PM_ORIG=new Date(2021,8,1); // 20-year mortgage
+const WF_START=64348, WF_RATE=0.0599, WF_TERM=72, WF_PMT=1068.76, WF_ORIG=new Date(2024,7,30);
+const M1_BAL=17894.82, M1_RATE=0.0565, M1_PMT=500, M1_ORIG=new Date(2026,2,1);
+
+const PM_ACTUAL=[
+["2021-10",336744.98],["2021-11",335699.46],["2021-12",334651.44],
+["2022-01",333600.91],["2022-02",332547.86],["2022-03",331492.29],
+["2022-04",330434.19],["2022-05",329373.56],["2022-06",328310.38],
+["2022-07",327244.66],["2022-08",326176.38],["2022-09",325105.54],
+["2022-10",324032.14],["2022-11",322956.17],["2022-12",321877.62],
+["2023-01",320796.49],["2023-02",319712.77],["2023-03",318626.45],
+["2023-04",317537.53],["2023-05",316446.00],["2023-06",315351.85],
+["2023-07",314255.08],["2023-08",313155.68],["2023-09",312053.65],
+["2023-10",310948.98],["2023-11",309841.66],["2023-12",308731.69],
+["2024-01",307619.06],["2024-02",306503.76],["2024-03",305385.79],
+["2024-04",304265.14],["2024-05",303141.81],["2024-06",302015.79],
+["2024-07",300887.07],["2024-08",299755.65],["2024-09",298621.51],
+["2024-10",297484.66],["2024-11",296345.08],["2024-12",295202.77],
+["2025-01",294057.73],["2025-02",292909.94],["2025-03",291759.40],
+["2025-04",290606.11],["2025-05",289450.05],["2025-06",288291.22],
+["2025-07",287129.62],["2025-08",285965.23],["2025-09",284798.06],
+["2025-10",283628.09],["2025-11",282455.32],["2025-12",281279.74],
+["2026-01",280101.34],["2026-02",278920.12],["2026-03",277736.07]];
+
+const WF_ACTUAL=[
+["2024-09",64348.00],["2024-10",63877.86],["2024-11",63119.77],
+["2024-12",62367.65],["2025-01",59611.42],["2025-02",59885.25],
+["2025-03",60050.90],["2025-04",59273.61],["2025-05",58504.13],
+["2025-06",57720.03],["2025-07",56940.75],["2025-08",53977.15],
+["2025-09",54241.81],["2025-10",54515.29],["2025-11",53710.89],
+["2025-12",52912.81],["2026-01",52112.00],["2026-02",51279.72]];
+
+// ═══════════════════════════════════════════════════════════════════
+// AMORTIZATION ENGINE
+// ═══════════════════════════════════════════════════════════════════
+function computePI(bal,rate,term){const r=rate/12;return bal*(r*Math.pow(1+r,term))/(Math.pow(1+r,term)-1);}
+
+function amortize(bal,rate,pmt,start,maxM){
+  maxM=maxM||600; const mr=rate/12;
+  const out=[{date:start,balance:bal}];
+  let b=bal;
+  for(let i=1;i<=maxM&&b>0;i++){
+    const int=b*mr, prin=Math.min(pmt-int,b);
+    b=Math.max(0,b-prin);
+    out.push({date:addMonths(start,i),balance:Math.round(b*100)/100});
+    if(b<=0)break;
+  }
+  return out;
+}
+
+function totalInt(sched,rate){let t=0;for(let i=0;i<sched.length-1;i++)t+=sched[i].balance*(rate/12);return t;}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPUTE ALL DATA
+// ═══════════════════════════════════════════════════════════════════
+let manualEntries = [];
+const TODAY = "2026-03";
+
+function compute(){
+  const pmPI = computePI(PM_START,PM_RATE,PM_TERM);
+  const pmSched = amortize(PM_START,PM_RATE,pmPI,PM_ORIG,PM_TERM);
+  const wfSched = amortize(WF_START,WF_RATE,WF_PMT,WF_ORIG,WF_TERM);
+  const m1Sched = amortize(M1_BAL,M1_RATE,M1_PMT,M1_ORIG,600);
+
+  // Build actual maps
+  const pmMap={}, wfMap={};
+  PM_ACTUAL.forEach(a=>{pmMap[a[0]]=a[1];});
+  WF_ACTUAL.forEach(a=>{wfMap[a[0]]=a[1];});
+  manualEntries.forEach(e=>{
+    const k=e.date.substring(0,7);
+    if(e.loan==="pennymac")pmMap[k]=parseFloat(e.balance);
+    else if(e.loan==="wellsfargo")wfMap[k]=parseFloat(e.balance);
+  });
+
+  const pmAE=Object.entries(pmMap).sort(), wfAE=Object.entries(wfMap).sort();
+  const latPM=pmAE.length?{d:pmAE[pmAE.length-1][0],b:pmAE[pmAE.length-1][1]}:null;
+  const latWF=wfAE.length?{d:wfAE[wfAE.length-1][0],b:wfAE[wfAE.length-1][1]}:null;
+
+  const pmProj=latPM?amortize(latPM.b,PM_RATE,pmPI,new Date(latPM.d+"-01"),400):[];
+  const wfProj=latWF?amortize(latWF.b,WF_RATE,WF_PMT,new Date(latWF.d+"-01"),100):[];
+
+  const pmSE=pmSched[pmSched.length-1]?.date, pmPE=pmProj[pmProj.length-1]?.date;
+  const wfSE=wfSched[wfSched.length-1]?.date, wfPE=wfProj[wfProj.length-1]?.date;
+  const m1E=m1Sched[m1Sched.length-1]?.date;
+
+  const pmMS=pmSE&&pmPE?monthDiff(pmPE,pmSE):0;
+  const wfMS=wfSE&&wfPE?monthDiff(wfPE,wfSE):0;
+
+  const pmSI=totalInt(pmSched,PM_RATE);
+  const pmPI2=totalInt([...pmAE.map(e=>({balance:e[1]})),...pmProj.slice(1)],PM_RATE);
+  const wfSI=totalInt(wfSched,WF_RATE);
+  const wfPI2=totalInt([...wfAE.map(e=>({balance:e[1]})),...wfProj.slice(1)],WF_RATE);
+  const m1I=totalInt(m1Sched,M1_RATE);
+
+  const curTotal=(latPM?latPM.b:0)+(latWF?latWF.b:0)+M1_BAL;
+  const allEnds=[pmPE,wfPE,m1E].filter(Boolean);
+  const dfDate=allEnds.length?new Date(Math.max(...allEnds.map(d=>d.getTime()))):null;
+  const intSaved=(pmSI-pmPI2)+(wfSI-wfPI2);
+
+  // Build date set
+  const ds={};
+  const ad=s=>s.forEach(x=>{ds[x.date.toISOString().substring(0,7)]=1;});
+  ad(pmSched);ad(wfSched);ad(m1Sched);ad(pmProj);ad(wfProj);
+  Object.keys(pmMap).forEach(d=>{ds[d]=1;});
+  Object.keys(wfMap).forEach(d=>{ds[d]=1;});
+  const dates=Object.keys(ds).sort();
+
+  function fb(sched,dstr){
+    const t=new Date(dstr+"-01");
+    for(let i=0;i<sched.length;i++){
+      const s=sched[i].date;
+      if(s.getFullYear()===t.getFullYear()&&s.getMonth()===t.getMonth())return sched[i].balance;
+    }
+    return null;
+  }
+
+  // Combined chart
+  const cLabels=[], cSched=[], cActual=[], cProj=[];
+  dates.forEach(d=>{
+    const ps=fb(pmSched,d)||0, ws=fb(wfSched,d)||0, ms=fb(m1Sched,d)||0;
+    const sv=ps+ws+ms;
+    let av=null;
+    if(d<=TODAY){
+      const pa=pmMap[d],wa=wfMap[d];
+      if(pa!==undefined||wa!==undefined){
+        av=(pa!==undefined?pa:(fb(pmSched,d)||0))+(wa!==undefined?wa:(fb(wfSched,d)||0));
+        if(d>="2026-03")av+=M1_BAL;
+      }
+    }
+    let pv=null;
+    if(d>=TODAY){
+      const pp=fb(pmProj,d),wp=fb(wfProj,d),mp=fb(m1Sched,d);
+      if(pp!==null||wp!==null||mp!==null)pv=(pp||0)+(wp||0)+(mp||0);
+    }
+    if(sv||av||pv){cLabels.push(d);cSched.push(sv||null);cActual.push(av);cProj.push(pv!==null?Math.round(pv):null);}
+  });
+
+  // Individual charts
+  const pmL=[],pmS=[],pmA=[],pmP=[];
+  dates.forEach(d=>{
+    const s=fb(pmSched,d),a=pmMap[d]||null,p=d>=TODAY?fb(pmProj,d):null;
+    if(s||a||p){pmL.push(d);pmS.push(s?Math.round(s):null);pmA.push(a?Math.round(a):null);pmP.push(p!==null?Math.round(p):null);}
+  });
+
+  const wfL=[],wfS=[],wfA=[],wfP=[];
+  dates.filter(d=>d>="2024-08").forEach(d=>{
+    const s=fb(wfSched,d),a=wfMap[d]||null,p=d>=TODAY?fb(wfProj,d):null;
+    if(s||a||p){wfL.push(d);wfS.push(s?Math.round(s):null);wfA.push(a?Math.round(a):null);wfP.push(p!==null?Math.round(p):null);}
+  });
+
+  const m1L=[],m1S=[];
+  dates.filter(d=>d>="2026-03").forEach(d=>{
+    const s=fb(m1Sched,d);
+    if(s){m1L.push(d);m1S.push(Math.round(s));}
+  });
+
+  return {
+    curTotal,dfDate,intSaved,wfMS,pmMS,
+    pmSE,pmPE,wfSE,wfPE,m1E,
+    pmSI,pmPI2,wfSI,wfPI2,m1I,
+    latPM,latWF,
+    cLabels,cSched,cActual,cProj,
+    pmL,pmS,pmA,pmP,
+    wfL,wfS,wfA,wfP,
+    m1L,m1S,
+    m1ChartLen:m1S.length,
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CHART FACTORY
+// ═══════════════════════════════════════════════════════════════════
+const charts = {};
+
+function makeChart(id, labels, datasets, todayIdx){
+  if(charts[id]){charts[id].destroy();}
+  const ctx = document.getElementById(id).getContext("2d");
+  const todayI = labels.indexOf(TODAY);
+
+  charts[id] = new Chart(ctx, {
+    type: "line",
+    data: { labels: labels.map(tickLabel), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { labels: { color: "#94a3b8", font: { size: 12 }, usePointStyle: true, pointStyle: "circle" } },
+        tooltip: {
+          backgroundColor: "#1e293b", titleColor: "#94a3b8", bodyColor: "#e2e8f0",
+          borderColor: "#334155", borderWidth: 1, padding: 12,
+          callbacks: { label: ctx => ctx.dataset.label + ": " + fmt(ctx.parsed.y) }
+        },
+        annotation: todayI >= 0 ? {
+          annotations: { todayLine: { type: "line", xMin: todayI, xMax: todayI, borderColor: "#f472b6", borderWidth: 2, borderDash: [6,4],
+            label: { display: true, content: "Today", color: "#f472b6", backgroundColor: "transparent", font: { size: 11 }, position: "start" }
+          }}
+        } : {}
+      },
+      scales: {
+        x: { ticks: { color: "#64748b", font: { size: 11 }, maxTicksLimit: 14 }, grid: { color: "#33415544" } },
+        y: { ticks: { color: "#64748b", font: { size: 11 }, callback: v => fmtK(v) }, grid: { color: "#33415544" } }
+      }
+    }
+  });
+}
+
+function ds(label,data,color,dash,fill){
+  return {
+    label, data, borderColor: color, backgroundColor: fill||"transparent",
+    borderWidth: dash ? 2 : 2.5, borderDash: dash||[],
+    pointRadius: dash ? 0 : 2, pointBackgroundColor: color,
+    tension: 0.3, fill: !!fill, spanGaps: true
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════
+function renderAll(){
+  const D = compute();
+
+  // Summary cards
+  document.getElementById("totalDebt").textContent = fmt(D.curTotal);
+  document.getElementById("debtFreeDate").textContent = D.dfDate ? dlabel(D.dfDate) : "—";
+  document.getElementById("interestSaved").textContent = fmt(Math.max(0, D.intSaved));
+  document.getElementById("monthsAhead").textContent = D.wfMS > 0 ? D.wfMS + " mo" : "On track";
+  document.getElementById("updateDate").textContent = new Date().toLocaleDateString("en-US",{month:"long",year:"numeric"});
+
+  // Combined chart
+  makeChart("chartCombined", D.cLabels, [
+    ds("Scheduled Baseline", D.cSched, "#ef4444", [6,3], "rgba(239,68,68,0.08)"),
+    ds("Actual Balance", D.cActual, "#6366f1", null, "rgba(99,102,241,0.12)"),
+    ds("Projected Path", D.cProj, "#10b981", [4,2], "rgba(16,185,129,0.08)"),
+  ]);
+
+  // PennyMac
+  const pmStats = [
+    ["Original Balance", fmt(PM_START)],["Current Balance", fmt(D.latPM?D.latPM.b:0)],
+    ["Interest Rate","2.875%"],["Principal Paid", fmt(PM_START-(D.latPM?D.latPM.b:0))],
+    ["Sched. Payoff", D.pmSE?dlabel(D.pmSE):"—"],["Projected Payoff", D.pmPE?dlabel(D.pmPE):"—"],
+    ["Sched. Total Interest", fmt(D.pmSI)],["Proj. Total Interest", fmt(D.pmPI2)],
+  ];
+  document.getElementById("pm-stats").innerHTML = pmStats.map(s=>`<div class="stat-box"><div class="stat-label">${s[0]}</div><div class="stat-value">${s[1]}</div></div>`).join("");
+  makeChart("chartPM", D.pmL, [
+    ds("Scheduled Baseline", D.pmS, "#ef4444", [6,3], "rgba(239,68,68,0.08)"),
+    ds("Actual Balance", D.pmA, "#6366f1", null, "rgba(99,102,241,0.12)"),
+    ds("Projected Path", D.pmP, "#10b981", [4,2], "rgba(16,185,129,0.08)"),
+  ]);
+
+  // Wells Fargo
+  const wfStats = [
+    ["Original Balance", fmt(WF_START)],["Current Balance", fmt(D.latWF?D.latWF.b:0)],
+    ["Interest Rate","5.990%"],["Principal Paid", fmt(WF_START-(D.latWF?D.latWF.b:0))],
+    ["Sched. Payoff", D.wfSE?dlabel(D.wfSE):"—"],["Projected Payoff", D.wfPE?dlabel(D.wfPE):"—"],
+    ["Sched. Total Interest", fmt(D.wfSI)],["Proj. Total Interest", fmt(D.wfPI2)],
+  ];
+  document.getElementById("wf-stats").innerHTML = wfStats.map(s=>`<div class="stat-box"><div class="stat-label">${s[0]}</div><div class="stat-value">${s[1]}</div></div>`).join("");
+  makeChart("chartWF", D.wfL, [
+    ds("Scheduled Baseline", D.wfS, "#ef4444", [6,3], "rgba(239,68,68,0.08)"),
+    ds("Actual Balance", D.wfA, "#f59e0b", null, "rgba(245,158,11,0.12)"),
+    ds("Projected Path", D.wfP, "#10b981", [4,2], "rgba(16,185,129,0.08)"),
+  ]);
+
+  // M1
+  const m1Stats = [
+    ["Current Balance", fmt(M1_BAL)],["Interest Rate","5.650%"],
+    ["Monthly Payment", fmt(M1_PMT)],["Projected Payoff", D.m1E?dlabel(D.m1E):"—"],
+    ["Total Interest", fmt(D.m1I)],["Months to Payoff", String(D.m1ChartLen)],
+  ];
+  document.getElementById("m1-stats").innerHTML = m1Stats.map(s=>`<div class="stat-box"><div class="stat-label">${s[0]}</div><div class="stat-value">${s[1]}</div></div>`).join("");
+  makeChart("chartM1", D.m1L, [
+    ds("Projected Balance", D.m1S, "#10b981", null, "rgba(16,185,129,0.12)"),
+  ]);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════════════════════════
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("view-"+btn.dataset.tab).classList.add("active");
+    // Resize charts when switching tabs (Chart.js needs this)
+    setTimeout(()=>Object.values(charts).forEach(c=>c.resize()),50);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// DATA ENTRY
+// ═══════════════════════════════════════════════════════════════════
+const loanNames = {pennymac:"PennyMac",wellsfargo:"Wells Fargo",m1:"M1"};
+
+function renderEntries(){
+  const el = document.getElementById("entryTable");
+  const emp = document.getElementById("entryEmpty");
+  if(!manualEntries.length){el.innerHTML="";emp.style.display="block";return;}
+  emp.style.display="none";
+  el.innerHTML = `<table><thead><tr><th>Loan</th><th>Date</th><th>Balance</th><th>Note</th><th></th></tr></thead><tbody>`
+    + manualEntries.map((e,i)=>`<tr><td>${loanNames[e.loan]}</td><td>${e.date}</td><td>${fmtFull(e.balance)}</td><td style="color:var(--text-muted)">${e.note||"—"}</td><td><button class="btn-del" data-idx="${i}">✕</button></td></tr>`).join("")
+    + `</tbody></table>`;
+  el.querySelectorAll(".btn-del").forEach(b=>{
+    b.addEventListener("click",()=>{manualEntries.splice(+b.dataset.idx,1);renderEntries();renderAll();});
+  });
+}
+
+document.getElementById("entryAdd").addEventListener("click",()=>{
+  const loan=document.getElementById("entryLoan").value;
+  const date=document.getElementById("entryDate").value;
+  const balance=document.getElementById("entryBalance").value;
+  const note=document.getElementById("entryNote").value;
+  if(!date||!balance)return;
+  manualEntries.push({loan,date,balance:parseFloat(balance),note});
+  document.getElementById("entryDate").value="";
+  document.getElementById("entryBalance").value="";
+  document.getElementById("entryNote").value="";
+  renderEntries();
+  renderAll();
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// PDF IMPORT ENGINE
+// ═══════════════════════════════════════════════════════════════════
+function initPdfImport(){
+  if(typeof pdfjsLib !== "undefined"){
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+  }
+
+  const dropZone = document.getElementById("dropZone");
+  const pdfInput = document.getElementById("pdfInput");
+  const statusEl = document.getElementById("importStatus");
+  const progressEl = document.getElementById("importProgress");
+  const logEl = document.getElementById("importLog");
+  const summaryEl = document.getElementById("importSummary");
+
+  function log(msg, cls){
+    logEl.innerHTML += '<div class="'+cls+'">'+msg+'</div>';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  // Drag & drop handlers
+  ["dragenter","dragover"].forEach(ev=>{
+    dropZone.addEventListener(ev, e=>{ e.preventDefault(); dropZone.classList.add("dragover"); });
+  });
+  ["dragleave","drop"].forEach(ev=>{
+    dropZone.addEventListener(ev, e=>{ e.preventDefault(); dropZone.classList.remove("dragover"); });
+  });
+  dropZone.addEventListener("drop", e=>{ handleFiles(e.dataTransfer.files); });
+  pdfInput.addEventListener("change", e=>{ handleFiles(e.target.files); e.target.value=""; });
+
+  async function handleFiles(fileList){
+    const files = Array.from(fileList).filter(f=>f.type==="application/pdf"||f.name.toLowerCase().endsWith(".pdf"));
+    if(!files.length){ alert("Please select PDF files."); return; }
+
+    statusEl.style.display = "block";
+    logEl.innerHTML = "";
+    summaryEl.style.display = "none";
+    let parsed=0, skipped=0, errors=0;
+
+    progressEl.innerHTML = '<span class="spinner"></span> Processing '+files.length+' file'+(files.length>1?"s":"")+'...';
+
+    for(let i=0; i<files.length; i++){
+      const f = files[i];
+      try {
+        log("📄 " + f.name, "log-info");
+        const result = await parsePdf(f);
+        if(result){
+          // Check for duplicate
+          const exists = manualEntries.some(e=>e.loan===result.loan && e.date===result.date);
+          if(exists){
+            log("  ⚠ Skipped — duplicate entry for " + result.date, "log-warn");
+            skipped++;
+          } else {
+            manualEntries.push({ loan: result.loan, date: result.date, balance: result.balance, note: "PDF import: " + f.name, id: Date.now()+i });
+            log("  ✓ " + loanNames[result.loan] + " | " + result.date + " | " + fmtFull(result.balance), "log-ok");
+            parsed++;
+          }
+        } else {
+          log("  ⚠ Could not extract data — unrecognized format", "log-warn");
+          skipped++;
+        }
+      } catch(err){
+        log("  ✗ Error: " + err.message, "log-err");
+        errors++;
+      }
+    }
+
+    progressEl.textContent = "Done — processed " + files.length + " file" + (files.length>1?"s":"");
+    summaryEl.style.display = "grid";
+    summaryEl.innerHTML =
+      '<div class="import-stat"><div class="num" style="color:var(--accent-green)">'+parsed+'</div><div class="lbl">Imported</div></div>' +
+      '<div class="import-stat"><div class="num" style="color:var(--accent-amber)">'+skipped+'</div><div class="lbl">Skipped</div></div>' +
+      '<div class="import-stat"><div class="num" style="color:var(--accent-red)">'+errors+'</div><div class="lbl">Errors</div></div>';
+
+    if(parsed > 0){
+      renderEntries();
+      renderAll();
+    }
+  }
+
+  async function parsePdf(file){
+    if(typeof pdfjsLib === "undefined"){
+      throw new Error("PDF.js library not loaded. Check your internet connection.");
+    }
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+
+    let fullText = "";
+    for(let p=1; p<=pdf.numPages; p++){
+      const page = await pdf.getPage(p);
+      const content = await page.getTextContent();
+      fullText += content.items.map(item=>item.str).join(" ") + "\n";
+    }
+
+    // --- Detect lender ---
+    const isPennyMac = /pennymac/i.test(fullText);
+    const isWellsFargo = /wells\s*fargo/i.test(fullText);
+
+    if(isPennyMac) return parsePennyMac(fullText);
+    if(isWellsFargo) return parseWellsFargo(fullText);
+    return null;
+  }
+
+  function parsePennyMac(text){
+    // Extract Payment Date: M/D/YYYY
+    const dateMatch = text.match(/Payment\s+Date:\s*(\d{1,2})\/(\d{1,2})\/(\d{4})/i);
+    if(!dateMatch) return null;
+    const month = dateMatch[1].padStart(2,"0");
+    const year = dateMatch[3];
+    const dateKey = year + "-" + month;
+
+    // Extract Unpaid Principal Balance: $XXX,XXX.XX
+    const balMatch = text.match(/Unpaid\s+Principal\s+Balance:\s*\$?([\d,]+\.?\d*)/i);
+    if(!balMatch) return null;
+    const balance = parseFloat(balMatch[1].replace(/,/g,""));
+
+    return { loan: "pennymac", date: dateKey, balance: balance };
+  }
+
+  function parseWellsFargo(text){
+    // Extract Statement date: MM/DD/YY
+    const dateMatch = text.match(/Statement\s+date\s+(\d{2})\/(\d{2})\/(\d{2,4})/i);
+    if(!dateMatch) return null;
+    const month = dateMatch[1];
+    let year = dateMatch[3];
+    if(year.length === 2) year = (parseInt(year) > 50 ? "19" : "20") + year;
+    const dateKey = year + "-" + month;
+
+    // Extract Payoff as of ... $XX,XXX.XX
+    const balMatch = text.match(/Payoff\s+as\s+of[^$]*\$\s*([\d,]+\.?\d*)/i);
+    if(!balMatch) return null;
+    const balance = parseFloat(balMatch[1].replace(/,/g,""));
+
+    return { loan: "wellsfargo", date: dateKey, balance: balance };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+renderAll();
+renderEntries();
+initPdfImport();
+</script>
+</body>
+</html>
